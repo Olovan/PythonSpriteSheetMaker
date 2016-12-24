@@ -13,6 +13,7 @@ topframe = None
 menu = None
 root = None
 canvas = None
+framerate_entry = None
 sprite_frames = []
 sprite_ids = []
 scalefactor = 0
@@ -31,6 +32,7 @@ def build_gui():
     global photoimg
     global canvas
     global sprite_frames
+    global framerate_entry
 
     root = Tk()
     try:
@@ -38,6 +40,7 @@ def build_gui():
     except:
         root.geometry("1200x600")
     root.resizable(0,0)
+    root.bind("<Control-p>", lambda e:preview_animation())
 
     topframe = Frame(root)
     topframe.pack(expand=TRUE, fill=BOTH)
@@ -59,15 +62,22 @@ def build_gui():
     filemenu.add_command(label="Open", command=open_file_menu)
     filemenu.add_command(label="Save to File", command = save_to_file_menu)
     menu.add_cascade(label="File", menu=filemenu)
-    menu.add_command(label="Preview Animation", command=preview_animation)
     root.config(menu=menu)
 
-    #Generate Button
-    gen_button = Button(topframe, text="Generate", command = display_sprites)
-    gen_button.grid(row = 2, column = 0, sticky = "SEW")
+    #Bottom Left Frame 
+    bottomleft_frame = Frame(topframe)
+    bottomleft_frame.grid(row = 2, column = 0, sticky = "NSEW")
+    bottomleft_frame.columnconfigure(0, weight = 1)
+    gen_button = Button(bottomleft_frame, text="Generate", takefocus=0, command = display_sprites)
+    gen_button.grid(row = 0, column = 0, sticky = "NSEW")
+    preview_button = Button(bottomleft_frame, text="Preview", takefocus = 0, command = preview_animation)
+    preview_button.grid(row = 0, column = 1, sticky = "NSEW")
+    framerate_entry = Entry(bottomleft_frame, width = 2, takefocus = 0)
+    framerate_entry.insert(0, 4)
+    framerate_entry.grid(row = 0, column = 2, sticky = "NSEW")
 
     #Add Sprite Button
-    sprite_button = Button(topframe, text = "Create Sprite", command = create_sprite)
+    sprite_button = Button(topframe, text = "Create Sprite", takefocus = 0, command = create_sprite)
     sprite_button.grid(row = 0, column = 0, sticky = "NEW")
 
     #Test Sprite Frames
@@ -92,7 +102,7 @@ def export_to_file(filename):
 
 def preview_animation():
     export_to_file("temp.ss")
-    subprocess.call(["./SpritePreviewer", "temp.ss"])
+    subprocess.call(["./SpritePreviewer", "-f", framerate_entry.get(), "temp.ss"])
 
 def open_image_file(filename):
     global img
@@ -164,12 +174,12 @@ class SpriteCoordinateFrame(Frame):
         self.v3 = Entry(self)
         self.v4 = Entry(self)
         self.deletebutton = Button(self)
-        self.cb.configure(variable = self.enabled, onvalue= 1, offvalue = 0, command = display_sprites)
+        self.cb.configure(variable = self.enabled, onvalue= 1, offvalue = 0, takefocus=0, command = display_sprites)
         self.v1.configure(width = 5)
         self.v2.configure(width = 5)
         self.v3.configure(width = 5)
         self.v4.configure(width = 5)
-        self.deletebutton.configure(text="Delete", command = self.delete_self)
+        self.deletebutton.configure(text="Delete", takefocus = 0, command = self.delete_self)
         self.cb.grid(row=0, column=0, padx = 5, pady = 2)
         self.v1.grid(row=0, column=1, padx = 5, pady = 2)
         self.v2.grid(row=0, column=2, padx = 5, pady = 2)
@@ -180,6 +190,22 @@ class SpriteCoordinateFrame(Frame):
         self.v2.bind("<Return>", return_callback)
         self.v3.bind("<Return>", return_callback)
         self.v4.bind("<Return>", return_callback)
+        self.v1.bind("<Up>", up_callback)
+        self.v2.bind("<Up>", up_callback)
+        self.v3.bind("<Up>", up_callback)
+        self.v4.bind("<Up>", up_callback)
+        self.v1.bind("<Down>", down_callback)
+        self.v2.bind("<Down>", down_callback)
+        self.v3.bind("<Down>", down_callback)
+        self.v4.bind("<Down>", down_callback)
+        self.v1.bind("<Button-1>", self.click_handler)
+        self.v2.bind("<Button-1>", self.click_handler)
+        self.v3.bind("<Button-1>", self.click_handler)
+        self.v4.bind("<Button-1>", self.click_handler)
+        self.v1.bind("<Control-d>", lambda e: self.duplicate_self())
+        self.v2.bind("<Control-d>", lambda e: self.duplicate_self())
+        self.v3.bind("<Control-d>", lambda e: self.duplicate_self())
+        self.v4.bind("<Control-d>", lambda e: self.duplicate_self())
         self.cb.select()
 
     def delete_self(self):
@@ -189,6 +215,16 @@ class SpriteCoordinateFrame(Frame):
 
     def report(self):
         print(self.enabled.get())
+
+    def click_handler(self, event):
+        event.widget.focus()
+        event.widget.select_range(0, END)
+        event.widget.icursor(END)
+        return 'break'
+
+    def duplicate_self(self):
+        sprite = create_sprite()
+        sprite.set_vals(self.v1.get(), self.v2.get(), self.v3.get(), self.v4.get())
 
 def create_sprite():
     global sprite_frames
@@ -208,6 +244,18 @@ def clear_sprites():
         sprite_ids.pop(0)
 
 def return_callback(event):
+    display_sprites()
+
+def up_callback(event):
+    currentval = event.widget.get()
+    event.widget.delete(0, END)
+    event.widget.insert(0, int(currentval) + 1)
+    display_sprites()
+
+def down_callback(event):
+    currentval = event.widget.get()
+    event.widget.delete(0, END)
+    event.widget.insert(0, int(currentval) - 1)
     display_sprites()
 
 def display_sprites():
